@@ -1,0 +1,274 @@
+<!--
+  =====================================================================
+  Shopify Custom Liquid Block – ZIP-Based Dynamic Price Checker
+  =====================================================================
+  HOW TO USE:
+  1. In Shopify Admin → Online Store → Themes → Customize
+  2. Open your Product page template
+  3. Add a "Custom Liquid" block below the price
+  4. Paste the entire contents of this file into that block
+  5. Replace YOUR_BACKEND_API_URL with your actual deployed API URL
+  =====================================================================
+-->
+
+<style>
+  /* ── ZIP Price Checker Widget ── */
+  .zip-price-widget {
+    margin: 24px 0;
+    font-family: inherit;
+  }
+
+  .zip-price-widget__label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b7280;
+    margin-bottom: 8px;
+  }
+
+  .zip-price-widget__row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .zip-price-widget__input {
+    flex: 1;
+    max-width: 160px;
+    padding: 11px 14px;
+    font-size: 15px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #fff;
+    color: #111;
+    letter-spacing: 0.05em;
+  }
+
+  .zip-price-widget__input:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  }
+
+  .zip-price-widget__input::placeholder {
+    color: #9ca3af;
+  }
+
+  .zip-price-widget__btn {
+    padding: 11px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    white-space: nowrap;
+  }
+
+  .zip-price-widget__btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.45);
+  }
+
+  .zip-price-widget__btn:active {
+    transform: translateY(0);
+  }
+
+  .zip-price-widget__btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Result card */
+  .zip-price-widget__result {
+    display: none;
+    margin-top: 16px;
+    padding: 16px 20px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%);
+    border: 1.5px solid #c7d2fe;
+    animation: zipFadeIn 0.35s ease;
+  }
+
+  .zip-price-widget__result.visible {
+    display: block;
+  }
+
+  .zip-price-widget__result-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #6b7280;
+    margin-bottom: 4px;
+  }
+
+  .zip-price-widget__result-price {
+    font-size: 28px;
+    font-weight: 700;
+    color: #4f46e5;
+    line-height: 1.2;
+  }
+
+  .zip-price-widget__result-sub {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 4px;
+  }
+
+  /* Error state */
+  .zip-price-widget__error {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #fef2f2;
+    border: 1.5px solid #fecaca;
+    color: #b91c1c;
+    font-size: 13px;
+  }
+
+  .zip-price-widget__error.visible {
+    display: block;
+  }
+
+  /* Spinner inside button */
+  .zip-price-widget__spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: zipSpin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes zipSpin {
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes zipFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+
+<!-- ── Widget HTML ── -->
+<div class="zip-price-widget" id="zip-price-widget">
+  <span class="zip-price-widget__label">Check price for your location</span>
+
+  <div class="zip-price-widget__row">
+    <input
+      id="zip-price-input"
+      class="zip-price-widget__input"
+      type="text"
+      inputmode="numeric"
+      maxlength="10"
+      placeholder="Enter ZIP code"
+      aria-label="ZIP code"
+    />
+    <button
+      id="zip-price-btn"
+      class="zip-price-widget__btn"
+      type="button"
+    >
+      Check Price
+    </button>
+  </div>
+
+  <div id="zip-price-result" class="zip-price-widget__result" aria-live="polite">
+    <div class="zip-price-widget__result-label">Price in your area</div>
+    <div class="zip-price-widget__result-price" id="zip-price-value">—</div>
+    <div class="zip-price-widget__result-sub" id="zip-price-sub"></div>
+  </div>
+
+  <div id="zip-price-error" class="zip-price-widget__error" role="alert"></div>
+</div>
+
+<script>
+  (function () {
+    // ── 🔧 CONFIGURATION – replace with your deployed API URL ──────────────
+    var API_URL = 'YOUR_BACKEND_API_URL/api/get-price';
+    // ───────────────────────────────────────────────────────────────────────
+
+    // Shopify injects the variant ID via Liquid at render time
+    var VARIANT_ID = '{{ product.selected_or_first_available_variant.id }}';
+
+    var input  = document.getElementById('zip-price-input');
+    var btn    = document.getElementById('zip-price-btn');
+    var result = document.getElementById('zip-price-result');
+    var priceEl = document.getElementById('zip-price-value');
+    var subEl  = document.getElementById('zip-price-sub');
+    var errEl  = document.getElementById('zip-price-error');
+
+    function showError(msg) {
+      errEl.textContent = msg;
+      errEl.classList.add('visible');
+      result.classList.remove('visible');
+    }
+
+    function hideError() {
+      errEl.classList.remove('visible');
+    }
+
+    function setLoading(loading) {
+      btn.disabled = loading;
+      btn.innerHTML = loading
+        ? '<span class="zip-price-widget__spinner"></span>Checking…'
+        : 'Check Price';
+    }
+
+    async function fetchPrice() {
+      var zip = input.value.trim();
+      if (!zip) {
+        showError('Please enter a ZIP code.');
+        return;
+      }
+
+      hideError();
+      setLoading(true);
+
+      try {
+        var response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ zipCode: zip, variantId: VARIANT_ID }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Server error: ' + response.status);
+        }
+
+        var data = await response.json();
+
+        // Show the price result card
+        priceEl.textContent = data.formatted || ('$' + data.price);
+        subEl.textContent   = 'Shipping estimate for ZIP ' + zip;
+        result.classList.add('visible');
+      } catch (err) {
+        showError('Could not fetch price. Please try again or contact support.');
+        console.error('[ZIP Price] Error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Click handler
+    btn.addEventListener('click', fetchPrice);
+
+    // Allow pressing Enter in the input
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') fetchPrice();
+    });
+  })();
+</script>
