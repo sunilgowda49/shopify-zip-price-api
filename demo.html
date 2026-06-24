@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZIP Price Checker — Live Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0f0f1a;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    /* ── Background glow ── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 800px; height: 600px;
+      background: radial-gradient(ellipse, rgba(99,102,241,0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .page {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    /* ── Product Card ── */
+    .card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      padding: 36px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+    }
+
+    .product-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.3);
+      color: #a5b4fc;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 100px;
+      margin-bottom: 20px;
+    }
+
+    .product-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: #6366f1;
+      border-radius: 50%;
+    }
+
+    .product-name {
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .product-sub {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 28px;
+    }
+
+    /* ── Price display ── */
+    .price-block {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 28px;
+      padding: 20px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      transition: all 0.4s ease;
+    }
+
+    .price-block.updated {
+      border-color: rgba(99,102,241,0.4);
+      background: rgba(99,102,241,0.08);
+    }
+
+    .price-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6b7280;
+    }
+
+    .price-amount {
+      font-size: 42px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      transition: all 0.35s ease;
+      line-height: 1;
+    }
+
+    .price-amount.pulse {
+      animation: pricePulse 0.5s ease;
+    }
+
+    @keyframes pricePulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    .price-zip-tag {
+      font-size: 12px;
+      color: #6366f1;
+      font-weight: 500;
+      margin-left: auto;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .price-zip-tag.visible { opacity: 1; }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: rgba(255,255,255,0.07);
+      margin: 24px 0;
+    }
+
+    /* ── ZIP Widget ── */
+    .widget-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6b7280;
+      margin-bottom: 12px;
+    }
+
+    .widget-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .zip-input {
+      flex: 1;
+      background: rgba(255,255,255,0.06);
+      border: 1.5px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 13px 16px;
+      font-size: 15px;
+      font-family: 'Inter', sans-serif;
+      color: #fff;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      letter-spacing: 0.05em;
+    }
+
+    .zip-input::placeholder { color: #4b5563; }
+
+    .zip-input:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+    }
+
+    .check-btn {
+      padding: 13px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      color: #fff;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 15px rgba(99,102,241,0.4);
+      white-space: nowrap;
+      min-width: 120px;
+    }
+
+    .check-btn:hover:not(:disabled) {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(99,102,241,0.5);
+    }
+
+    .check-btn:active:not(:disabled) { transform: translateY(0); }
+    .check-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Quick ZIP Presets ── */
+    .presets {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .preset-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      color: #9ca3af;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .preset-btn:hover {
+      color: #a5b4fc;
+      border-color: rgba(99,102,241,0.4);
+      background: rgba(99,102,241,0.08);
+    }
+
+    .preset-btn span {
+      color: #6b7280;
+      font-size: 11px;
+      margin-left: 4px;
+    }
+
+    /* ── Error ── */
+    .error-msg {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.25);
+      color: #f87171;
+      font-size: 13px;
+    }
+    .error-msg.visible { display: block; }
+
+    /* ── Status bar ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 24px;
+      padding: 10px 14px;
+      background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 10px;
+      font-size: 12px;
+      color: #6ee7b7;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: statusPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes statusPulse {
+      0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+      50%      { opacity: 0.7; box-shadow: 0 0 0 4px rgba(16,185,129,0); }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="card">
+
+    <div class="product-badge">Live Demo</div>
+
+    <h1 class="product-name">Premium Modular Sofa</h1>
+    <p class="product-sub">Free delivery · 5-year warranty · In stock</p>
+
+    <!-- Price block -->
+    <div class="price-block" id="priceBlock">
+      <div>
+        <div class="price-label">Your Price</div>
+        <div class="price-amount" id="priceDisplay">$1,599</div>
+      </div>
+      <div class="price-zip-tag" id="zipTag"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ZIP widget -->
+    <div class="widget-label">📍 Check price for your ZIP code</div>
+    <div class="widget-row">
+      <input
+        id="zipInput"
+        class="zip-input"
+        type="text"
+        inputmode="numeric"
+        maxlength="10"
+        placeholder="e.g. 75028"
+        aria-label="ZIP code"
+      />
+      <button id="checkBtn" class="check-btn">Check Price</button>
+    </div>
+
+    <!-- Quick presets -->
+    <div class="presets">
+      <button class="preset-btn" onclick="tryZip('75028')">75028 <span>→ $1,499</span></button>
+      <button class="preset-btn" onclick="tryZip('10001')">10001 <span>→ $1,699</span></button>
+      <button class="preset-btn" onclick="tryZip('90210')">90210 <span>→ $1,799</span></button>
+      <button class="preset-btn" onclick="tryZip('99999')">99999 <span>→ default</span></button>
+    </div>
+
+    <div class="error-msg" id="errorMsg"></div>
+
+    <!-- Live status -->
+    <div class="status-bar">
+      <div class="status-dot"></div>
+      API Live at shopify-zip-price-api.vercel.app
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const API_URL = 'https://shopify-zip-price-api.vercel.app/api/get-price';
+
+  const zipInput   = document.getElementById('zipInput');
+  const checkBtn   = document.getElementById('checkBtn');
+  const priceDisplay = document.getElementById('priceDisplay');
+  const priceBlock = document.getElementById('priceBlock');
+  const zipTag     = document.getElementById('zipTag');
+  const errorMsg   = document.getElementById('errorMsg');
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.classList.add('visible');
+  }
+
+  function hideError() {
+    errorMsg.classList.remove('visible');
+  }
+
+  function setLoading(on) {
+    checkBtn.disabled = on;
+    checkBtn.innerHTML = on
+      ? '<span class="spinner"></span>Checking…'
+      : 'Check Price';
+  }
+
+  function updatePrice(formatted, zip) {
+    priceDisplay.classList.remove('pulse');
+    void priceDisplay.offsetWidth; // reflow to restart animation
+    priceDisplay.textContent = formatted;
+    priceDisplay.classList.add('pulse');
+    priceBlock.classList.add('updated');
+    zipTag.textContent = 'ZIP ' + zip;
+    zipTag.classList.add('visible');
+  }
+
+  async function fetchPrice(zip) {
+    if (!zip) { showError('Please enter a ZIP code.'); return; }
+    hideError();
+    setLoading(true);
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zipCode: zip, variantId: 'demo-variant-001' })
+      });
+      if (!res.ok) throw new Error('Server error ' + res.status);
+      const data = await res.json();
+      updatePrice(data.formatted || ('$' + data.price), zip);
+    } catch (e) {
+      showError('Could not reach the API. Make sure you are online.');
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function tryZip(zip) {
+    zipInput.value = zip;
+    fetchPrice(zip);
+  }
+
+  checkBtn.addEventListener('click', () => fetchPrice(zipInput.value.trim()));
+  zipInput.addEventListener('keydown', e => { if (e.key === 'Enter') fetchPrice(zipInput.value.trim()); });
+</script>
+</body>
+</html>

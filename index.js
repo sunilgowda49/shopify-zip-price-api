@@ -47,8 +47,12 @@ app.post('/api/get-price', (req, res) => {
   });
 });
 
+// Serve the demo page at root
+const path = require('path');
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'demo.html')));
+
 // Health-check
-app.get('/', (req, res) => res.json({ status: 'ok', message: 'Price API is running' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', message: 'Price API is running' }));
 
 // ---------------------------------------------------------------------------
 // Local dev server (Vercel / Render ignore this block)
